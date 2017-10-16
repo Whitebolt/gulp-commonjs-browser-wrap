@@ -4,6 +4,8 @@ const through = require('through2');
 const PluginError = require('gulp-util').PluginError;
 const path = require('path');
 
+const exportedRequire = _require.toString().replace(/_require/g, 'require');
+
 function makeArray(value) {
 	if (value === undefined) return [];
 	if (value instanceof Set) return [...value];
@@ -33,13 +35,12 @@ function pluginModule(options, file, encoding, callback) {
 	if (file.isStream()) {
 		this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
 	} else if (file.isBuffer()) {
-		const require = _require.toString().replace(/_require/g, 'require');
 		const contents = file.contents.toString('utf8');
 		const requires = mains(options, file).map(main=>`require("${main}");`).join();
 
 		file.contents = new Buffer(`(function(){
-			const modules = new Map();
-			${require}
+			const _commonjsBrowserWrapModules = new Map();
+			${exportedRequire}
 			${contents}
 			${requires}
 		})()`);
@@ -49,8 +50,15 @@ function pluginModule(options, file, encoding, callback) {
 }
 
 function _require(moduleFunction, moduleId) {
+	const _moduleId = ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
+	const module = {};
+
 	function isFunction(value) {
 		return !!(value && value.constructor && value.call && value.apply);
+	}
+
+	function isString(value) {
+		return ((typeof value === 'string') || (value instanceof String));
 	}
 
 	function lopped(path) {
@@ -58,6 +66,7 @@ function _require(moduleFunction, moduleId) {
 		parts.pop();
 		return parts;
 	}
+
 	function resolve(to, from) {
 		const path = lopped(to).concat(from.split('/'));
 		const resolved = [];
@@ -77,29 +86,25 @@ function _require(moduleFunction, moduleId) {
 		return resolved.join('/');
 	}
 
-	if (!isFunction(moduleFunction)) {
-		moduleId = moduleFunction.replace(/\.js$/, '');
-
-		const localRequire = function (localModuleId, ...params) {
-			const resolvedModuleId = (isFunction(localModuleId)?localModuleId:resolve(moduleId, localModuleId));
-			return _require(resolvedModuleId, ...params);
-		};
-
-
-		const module = {};
-		modules.get(moduleId)(localRequire, module);
-		return module.exports;
-	} else {
-		moduleId = moduleId.replace(/\.js$/, '');
-		modules.set(moduleId, moduleFunction);
+	function getLocalRequire() {
+		return (localModuleId, ...params)=>_require(
+			isString(_moduleId)?resolve(_moduleId, localModuleId):localModuleId,
+			...params
+		);
 	}
+
+	if (isFunction(moduleFunction)) return _commonjsBrowserWrapModules.set(_moduleId, moduleFunction);
+	if (!_commonjsBrowserWrapModules.has(_moduleId)) throw new SyntaxError(`Cannot find module with id: ${moduleId}`);
+	_commonjsBrowserWrapModules.get(_moduleId)(getLocalRequire(_moduleId), module);
+	return module.exports;
 }
 
 module.exports = options=>{
-	if (!options || !options.type || (options.type === 'requireWrap')) return through.obj(function (...params){
-		pluginRequires.bind(this)(options, ...params);
-	});
-	if (options.type === 'moduleWrap') return through.obj(function (...params){
-		pluginModule.bind(this)(options, ...params);
+	return through.obj(function (...params){
+		if (!options || !options.type || (options.type === 'requireWrap')) {
+			pluginRequires.bind(this)(options, ...params);
+		} else if (options && (options.type === 'moduleWrap')) {
+			pluginModule.bind(this)(options, ...params);
+		}
 	});
 };
