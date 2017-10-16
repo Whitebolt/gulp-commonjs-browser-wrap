@@ -12,43 +12,49 @@ function makeArray(value) {
 	return (Array.isArray(value)?value:[value]);
 }
 
-function mains(options, file) {
-	return makeArray(options.main).map(main=>path.resolve(file.cwd, main));
+function wrapVinyl(file, pre, post) {
+	if (file.isStream()) {
+		let prepended = false;
+		file.contents = file.contents.pipe(through2(
+			{decodeStrings:false, encoding:'utf8'},
+			function(chunk, encoding, callback) {
+				if (!prepended) {
+					this.push(pre(true));
+					prepended = true;
+				}
+				callback();
+			}, function(done) {
+				this.push(post(true));
+				done();
+			}
+		));
+	} else if (file.isBuffer()) {
+		file.contents = new Buffer(pre()+file.contents.toString('utf8')+post());
+	}
+}
+
+function prePost(prePost) {
+	return (buffer=true)=>(buffer?new Buffer(prePost):prePost);
 }
 
 function pluginRequires(options, file, encoding, callback) {
-	if (file.isNull()) return callback(null, file);
-
-	if (file.isStream()) {
-		this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
-	} else if (file.isBuffer()) {
-		const contents = file.contents.toString('utf8');
+	if (file.isStream() || file.isBuffer()) {
 		const moduleId = './' + path.relative(file.cwd, file.path);
-
-		file.contents = new Buffer(`require(function(require, module){${contents}}, '${moduleId}');`);
-		return callback(null, file);
+		wrapVinyl(file, prePost('require(function(require, module){'), prePost(`}, '${moduleId}');`));
 	}
+	return callback(null, file);
 }
 
 function pluginModule(options, file, encoding, callback) {
-
-	if (file.isNull()) return callback(null, file);
-
-	if (file.isStream()) {
-		this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
-	} else if (file.isBuffer()) {
-		const contents = file.contents.toString('utf8');
+	if (file.isStream() || file.isBuffer()) {
 		const requires = makeArray(options.main).map(main=>`require("${main}");`).join();
-
-		file.contents = new Buffer(`(function(){
-			const _commonjsBrowserWrapModules = new Map();
-			${exportedRequire}
-			${contents}
-			${requires}
-		})()`);
-
-		return callback(null, file);
+		wrapVinyl(
+			file,
+			prePost(`(function(){const _commonjsBrowserWrapModules = new Map();${exportedRequire}`),
+			prePost(`${requires}})()`)
+		);
 	}
+	return callback(null, file);
 }
 
 function _require(moduleFunction, moduleId) {
