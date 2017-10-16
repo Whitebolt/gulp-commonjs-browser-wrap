@@ -23,7 +23,9 @@ function pluginRequires(options, file, encoding, callback) {
 		this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
 	} else if (file.isBuffer()) {
 		const contents = file.contents.toString('utf8');
-		file.contents = new Buffer(`require(function(require, module){${contents}}, '${file.path}');`);
+		const moduleId = './' + path.relative(file.cwd, file.path);
+
+		file.contents = new Buffer(`require(function(require, module){${contents}}, '${moduleId}');`);
 		return callback(null, file);
 	}
 }
@@ -36,7 +38,7 @@ function pluginModule(options, file, encoding, callback) {
 		this.emit('error', new PluginError(PLUGIN_NAME, 'Streams not supported!'));
 	} else if (file.isBuffer()) {
 		const contents = file.contents.toString('utf8');
-		const requires = mains(options, file).map(main=>`require("${main}");`).join();
+		const requires = makeArray(options.main).map(main=>`require("${main}");`).join();
 
 		file.contents = new Buffer(`(function(){
 			const _commonjsBrowserWrapModules = new Map();
@@ -50,7 +52,7 @@ function pluginModule(options, file, encoding, callback) {
 }
 
 function _require(moduleFunction, moduleId) {
-	const _moduleId = ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
+	const _moduleId = moduleIdFix(moduleId);
 	const module = {};
 
 	function isFunction(value) {
@@ -65,6 +67,11 @@ function _require(moduleFunction, moduleId) {
 		const parts = path.split('/');
 		parts.pop();
 		return parts;
+	}
+
+	function moduleIdFix(moduleId) {
+		const _moduleId = ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
+		return (((_moduleId.charAt(0) !== '/') && (_moduleId.charAt(0) !== '.')) ? './' + _moduleId : _moduleId);
 	}
 
 	function resolve(to, from) {
