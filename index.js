@@ -4,7 +4,51 @@ const through = require('through2');
 const PluginError = require('gulp-util').PluginError;
 const path = require('path');
 
-const exportedRequire = _require.toString().replace(/_require/g, 'require');
+const exportedRequire = insertFunctions(
+	_require.toString().replace(/_require/g, 'require'),
+	isFunction, isString, lopped, resolve
+);
+
+
+function insertFunctions(txt, ...funcs){
+	return txt.replace(
+		'// insert-functions',
+		funcs.map(functionName=>functionName.toString()).join('')
+	);
+}
+
+function resolve(to, from) {
+	const path = lopped(to).concat(from.split('/'));
+	const resolved = [];
+	let back = 0;
+	for (let n=path.length-1; n>=0; n--) {
+		if (path[n] !== '.') {
+			if (path[n] === '..') {
+				back++;
+			} else if (back > 0) {
+				back--;
+			} else {
+				resolved.unshift(path[n]);
+			}
+		}
+	}
+
+	return resolved.join('/');
+}
+
+function isFunction(value) {
+	return !!(value && value.constructor && value.call && value.apply);
+}
+
+function isString(value) {
+	return ((typeof value === 'string') || (value instanceof String));
+}
+
+function lopped(path) {
+	const parts = path.split('/');
+	parts.pop();
+	return parts;
+}
 
 function makeArray(value) {
 	if (value === undefined) return [];
@@ -47,7 +91,7 @@ function pluginRequires(options, file, encoding, callback) {
 
 function pluginModule(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
-		const requires = makeArray(options.main).map(main=>`require("${main}");`).join();
+		const requires = makeArray(options.main).map(main=>`require("${main}");`).join('');
 		wrapVinyl(
 			file,
 			prePost(`(function(){const _commonjsBrowserWrapModules = new Map();${exportedRequire}`),
@@ -61,42 +105,11 @@ function _require(moduleFunction, moduleId) {
 	const _moduleId = moduleIdFix(moduleId);
 	const module = {};
 
-	function isFunction(value) {
-		return !!(value && value.constructor && value.call && value.apply);
-	}
-
-	function isString(value) {
-		return ((typeof value === 'string') || (value instanceof String));
-	}
-
-	function lopped(path) {
-		const parts = path.split('/');
-		parts.pop();
-		return parts;
-	}
+	// insert-functions
 
 	function moduleIdFix(moduleId) {
 		const _moduleId = ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
 		return (((_moduleId.charAt(0) !== '/') && (_moduleId.charAt(0) !== '.')) ? './' + _moduleId : _moduleId);
-	}
-
-	function resolve(to, from) {
-		const path = lopped(to).concat(from.split('/'));
-		const resolved = [];
-		let back = 0;
-		for (let n=path.length-1; n>=0; n--) {
-			if (path[n] !== '.') {
-				if (path[n] === '..') {
-					back++;
-				} else if (back > 0) {
-					back--;
-				} else {
-					resolved.unshift(path[n]);
-				}
-			}
-		}
-
-		return resolved.join('/');
 	}
 
 	function getLocalRequire() {
