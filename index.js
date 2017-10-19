@@ -1,7 +1,6 @@
 'use strict';
 
 const through = require('through2');
-const PluginError = require('gulp-util').PluginError;
 const path = require('path');
 
 const exportedRequire = insertFunctions(

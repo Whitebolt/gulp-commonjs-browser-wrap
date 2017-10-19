@@ -1,31 +1,27 @@
 {
   "name": "gulp-commonjs-browser-wrap",
-  "description": "Wrap requires to export node modules for browser",
+  "description": "Wrap requires to export node modules for browser in a self-contained iife().",
   "author": "Whitebolt <hello@whitebolt.net>",
-  "contributors": [
-    {
+  "contributors": [{
       "name": "Stephen Simpson",
       "email": "stephen@whitebolt.net"
-    },
-    {
-      "name": "Kristjan Allikas",
-      "email": "kris@whitebolt.net"
-    }
-  ],
-  "version": "0.2.0",
-  "private": true,
+  }],
+  "version": "0.3.0",
+  "private": false,
   "keywords": [
     "gulpfriendly",
     "gulp",
-    "cjs"
+    "common-js",
+    "browsify",
+    "require",
+    "build"
   ],
   "dependencies": {
-    "gulp-util": "^3.0.8",
     "through2": "^2.0.3"
   },
   "repository": {
     "type": "git",
-    "url": "git@aaron.whitebolt:simpo/gulp-commonjs-browser-wrap.git"
+    "url": "git@github.com:Whitebolt/gulp-commonjs-browser-wrap.git"
   },
   "license": "MIT",
   "devDependencies": {}
