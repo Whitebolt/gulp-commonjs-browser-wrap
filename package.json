@@ -6,7 +6,7 @@
       "name": "Stephen Simpson",
       "email": "stephen@whitebolt.net"
   }],
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": false,
   "keywords": [
     "gulpfriendly",
@@ -23,6 +23,10 @@
     "type": "git",
     "url": "git@github.com:Whitebolt/gulp-commonjs-browser-wrap.git"
   },
+  "bugs": {
+    "url": "https://github.com/Whitebolt/gulp-commonjs-browser-wrap/issues"
+  },
+  "homepage": "https://github.com/Whitebolt/gulp-commonjs-browser-wrap#readme",
   "license": "MIT",
   "devDependencies": {}
 }

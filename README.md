@@ -52,7 +52,7 @@ All of the above are often useful or necessary.  However, if you need a simple g
 
 ## Automatically including requires
 
-We've written a companion vinyl-adaptor that is compatible with gulp. It can pull all the dependencies of a main module into the gulp stream for processing.
+We've written a companion vinyl-adaptor, [Vinyl CommonJs Dependencies](https://github.com/Whitebolt/vinyl-commonjs-dependencies) that is compatible with gulp. It can pull all the dependencies of a main module into the gulp stream for processing.
 
 ## Beta status
 
