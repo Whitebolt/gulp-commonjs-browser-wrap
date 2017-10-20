@@ -2,12 +2,12 @@
 
 const through = require('through2');
 const path = require('path');
+const {makeArray, isFunction, isString} = require('./lib/util');
 
 const exportedRequire = insertFunctions(
 	_require.toString().replace(/_require/g, 'require'),
 	isFunction, isString, lopped, resolve
 );
-
 
 function insertFunctions(txt, ...funcs){
 	return txt.replace(
@@ -35,24 +35,10 @@ function resolve(to, from) {
 	return resolved.join('/');
 }
 
-function isFunction(value) {
-	return !!(value && value.constructor && value.call && value.apply);
-}
-
-function isString(value) {
-	return ((typeof value === 'string') || (value instanceof String));
-}
-
 function lopped(path) {
 	const parts = path.split('/');
 	parts.pop();
 	return parts;
-}
-
-function makeArray(value) {
-	if (value === undefined) return [];
-	if (value instanceof Set) return [...value];
-	return (Array.isArray(value)?value:[value]);
 }
 
 function wrapVinyl(file, pre, post) {

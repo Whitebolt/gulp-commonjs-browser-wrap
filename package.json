@@ -2,10 +2,12 @@
   "name": "gulp-commonjs-browser-wrap",
   "description": "Wrap requires to export node modules for browser in a self-contained iife().",
   "author": "Whitebolt <hello@whitebolt.net>",
-  "contributors": [{
+  "contributors": [
+    {
       "name": "Stephen Simpson",
       "email": "stephen@whitebolt.net"
-  }],
+    }
+  ],
   "version": "0.3.1",
   "private": false,
   "keywords": [
@@ -17,6 +19,10 @@
     "build"
   ],
   "dependencies": {
+    "lodash.castarray": "^4.4.0",
+    "lodash.isfunction": "^3.0.8",
+    "lodash.isobject": "^3.0.2",
+    "lodash.isstring": "^4.0.1",
     "through2": "^2.0.3"
   },
   "repository": {
