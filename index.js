@@ -2,20 +2,21 @@
 
 const through = require('through2');
 const path = require('path');
-const {makeArray, isFunction, isString} = require('./lib/util');
+const {makeArray, isFunction, isString, lopped, insertFunctions} = require('./lib/util');
 
 const exportedRequire = insertFunctions(
 	_require.toString().replace(/_require/g, 'require'),
+	'// insert-functions',
 	isFunction, isString, lopped, resolve
 );
 
-function insertFunctions(txt, ...funcs){
-	return txt.replace(
-		'// insert-functions',
-		funcs.map(functionName=>functionName.toString()).join('')
-	);
-}
-
+/**
+ * Resolve a path to a given root.
+ *
+ * @param {path} to			Path to resolve to.
+ * @param {path} from		Path to resolve from.
+ * @returns {string}		Resolved path.
+ */
 function resolve(to, from) {
 	const path = lopped(to).concat(from.split('/'));
 	const resolved = [];
@@ -35,12 +36,13 @@ function resolve(to, from) {
 	return resolved.join('/');
 }
 
-function lopped(path) {
-	const parts = path.split('/');
-	parts.pop();
-	return parts;
-}
-
+/**
+ * Call the given functions to insert text before and after file contents.
+ *
+ * @param {VinylFile} file		The vinyl-file we are dealing with.
+ * @param {Function} pre		Pre function to get Buffer or text for preppending.
+ * @param {Function} post		Post function to get Buffer or text for appending.
+ */
 function wrapVinyl(file, pre, post) {
 	if (file.isStream()) {
 		let prepended = false;
@@ -62,10 +64,28 @@ function wrapVinyl(file, pre, post) {
 	}
 }
 
+/**
+ * Create a pre/post function that returns the given text either as a Buffer or just text depending on
+ * boolean parameter.
+ *
+ * @param {string} prePost		Text for pre/post function
+ * @returns {Function}			Pre/Post function.
+ */
 function prePost(prePost) {
+	/**
+	 * @param {booleam} [buffer=true]		Whether to serve a Buffer or just plain text.
+	 */
 	return (buffer=true)=>(buffer?new Buffer(prePost):prePost);
 }
 
+/**
+ * Pipe function for wrapping a module.
+ *
+ * @param {Object} options		The current plugin options.
+ * @param {VinylFile} file		The vinyl-file we are dealing with.
+ * @param {string} encoding		The file encoding.
+ * @param {function} callback	Pipe callback to fire.
+ */
 function pluginRequires(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
 		const moduleId = './' + path.relative(file.cwd, file.path);
@@ -74,6 +94,14 @@ function pluginRequires(options, file, encoding, callback) {
 	return callback(null, file);
 }
 
+/**
+ * Pipe function for wrapping an entire module (ie. the root module).
+ *
+ * @param {Object} options		The current plugin options.
+ * @param {VinylFile} file		The vinyl-file we are dealing with.
+ * @param {string} encoding		The file encoding.
+ * @param {function} callback	Pipe callback to fire.
+ */
 function pluginModule(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
 		const requires = makeArray(options.main).map(main=>`require("${main}");`).join('');
@@ -92,11 +120,22 @@ function _require(moduleFunction, moduleId) {
 
 	// insert-functions
 
+	/**
+	 * Add .js to end of module-id and ./ to beginning (where they are not present).
+	 *
+	 * @param {string} moduleId		Module id to fix
+	 * @returns {string}			Fixed module id.
+	 */
 	function moduleIdFix(moduleId) {
 		const _moduleId = ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
 		return (((_moduleId.charAt(0) !== '/') && (_moduleId.charAt(0) !== '.')) ? './' + _moduleId : _moduleId);
 	}
 
+	/**
+	 * Get a require function scoped to module.
+	 *
+	 * @returns {Function}		Scoped require.
+	 */
 	function getLocalRequire() {
 		return (localModuleId, ...params)=>_require(
 			isString(_moduleId)?resolve(_moduleId, localModuleId):localModuleId,
