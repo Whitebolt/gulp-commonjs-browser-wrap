@@ -8,7 +8,7 @@
       "email": "stephen@whitebolt.net"
     }
   ],
-  "version": "0.3.1",
+  "version": "0.3.2",
   "private": false,
   "keywords": [
     "gulpfriendly",
@@ -19,6 +19,7 @@
     "build"
   ],
   "dependencies": {
+    "lodash-provider": "^1.0.1",
     "lodash.castarray": "^4.4.0",
     "lodash.isfunction": "^3.0.8",
     "lodash.isobject": "^3.0.2",
