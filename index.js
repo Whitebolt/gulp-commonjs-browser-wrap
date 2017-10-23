@@ -18,7 +18,7 @@ const exportedRequire = insertFunctions(
  * @returns {string}		Resolved path.
  */
 function resolve(to, from) {
-	if ((from.charAt(0) !== '/') && (from.charAt(0) !== '.')) return from;
+	if (from.charAt(0) !== '.') return from;
 	const path = lopped(to).concat(from.split('/'));
 	const resolved = [];
 	let back = 0;
@@ -120,8 +120,8 @@ function pluginModule(options, file, encoding, callback) {
 
 		wrapVinyl(
 			file,
-			prePost(`(function(${topWrap}){const _commonjsBrowserWrapModules = new Map();${exportedRequire}`),
-			prePost(`${requires}})(${bottomWrap})`)
+			prePost(`(function(${topWrap}){const _commonjsBrowserWrapModules = new Map();${options.insertAtTop}${exportedRequire}`),
+			prePost(`${requires}${options.insertAtBottom}})(${bottomWrap})`)
 		);
 	}
 	return callback(null, file);
@@ -166,12 +166,28 @@ function _require(moduleFunction, moduleId) {
 	return module.exports;
 }
 
+/**
+ * Parse the module options adding defaults.
+ *
+ * @param {object} options			Options object.
+ * @returns {Object}				Mutated options (defaults added).
+ */
+function parseOptions(options={}) {
+	options.type = options.type || 'requireWrap';
+	options.includeGlobal = options.includeGlobal || false;
+	options.insertAtTop = options.insertAtTop || '';
+	options.insertAtBottom = options.insertAtBottom || '';
+
+	return options;
+}
+
 module.exports = options=>{
+	const _options = parseOptions(options);
 	return through.obj(function (...params){
-		if (!options || !options.type || (options.type === 'requireWrap')) {
-			pluginRequires.bind(this)(options, ...params);
-		} else if (options && (options.type === 'moduleWrap')) {
-			pluginModule.bind(this)(options, ...params);
+		if (_options.type === 'requireWrap') {
+			pluginRequires.bind(this)(_options, ...params);
+		} else if (_options.type === 'moduleWrap') {
+			pluginModule.bind(this)(_options, ...params);
 		}
 	});
 };

@@ -56,9 +56,6 @@ If your module wants to load some modules from a global commonjs loader then you
 
 ```javascript
 
-const gulp = require('gulp');
-const concat = require('gulp-concat');
-
 gulp.task('build', ()=>gulp.src(['.lib/*.js'])
     .pipe(concat('browser.js'))
     .pipe(commonjsBrowserWrap({
@@ -69,6 +66,25 @@ gulp.task('build', ()=>gulp.src(['.lib/*.js'])
     .pipe(gulp.dest('./build'))
 );
 ```
+
+## Inserting extra code
+
+Extra code can be inserted before or after the moduleWrap by using the *insertAtTop* and *insertAtBottom* option.
+
+```javascript
+
+gulp.task('build', ()=>gulp.src(['.lib/*.js'])
+    .pipe(concat('browser.js'))
+    .pipe(commonjsBrowserWrap({
+    	type:'moduleWrap',
+    	main:['./lib/index.js'],
+    	includeGlobal: true,
+    	insertAtTop: 'require("babel-polyfill");'
+    }))
+    .pipe(gulp.dest('./build'))
+);
+```
+
 
 ## Automatically including requires
 
