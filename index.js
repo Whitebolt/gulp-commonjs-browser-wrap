@@ -5,7 +5,7 @@ const path = require('path');
 const {makeArray, isFunction, isString, lopped, insertFunctions} = require('./lib/util');
 
 const exportedRequire = insertFunctions(
-	_require.toString().replace(/_require/g, 'require'),
+	_require.toString().replace(/\b_require/g, 'require'),
 	'// insert-functions',
 	isFunction, isString, lopped, resolve
 );
@@ -18,6 +18,7 @@ const exportedRequire = insertFunctions(
  * @returns {string}		Resolved path.
  */
 function resolve(to, from) {
+	if ((from.charAt(0) !== '/') && (from.charAt(0) !== '.')) return from;
 	const path = lopped(to).concat(from.split('/'));
 	const resolved = [];
 	let back = 0;
@@ -32,6 +33,8 @@ function resolve(to, from) {
 			}
 		}
 	}
+
+	if (path[0] === '.') resolved.unshift('.');
 
 	return resolved.join('/');
 }
@@ -104,11 +107,21 @@ function pluginRequires(options, file, encoding, callback) {
  */
 function pluginModule(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
-		const requires = makeArray(options.main).map(main=>`require("${main}");`).join('');
+		const requires = makeArray(options.main).map(main=>{
+			const moduleId = './' + path.relative(file.cwd, main);
+			return `require('${moduleId}');`;
+		}).join('');
+
+		const topWrap = options.includeGlobal ? '__require, __module' : '';
+		const bottomWrap = options.includeGlobal ? `
+			(function(){try {return require;} catch(err) {}})(),
+			(function(){try {return module;} catch(err) {}})()`
+			: '';
+
 		wrapVinyl(
 			file,
-			prePost(`(function(){const _commonjsBrowserWrapModules = new Map();${exportedRequire}`),
-			prePost(`${requires}})()`)
+			prePost(`(function(${topWrap}){const _commonjsBrowserWrapModules = new Map();${exportedRequire}`),
+			prePost(`${requires}})(${bottomWrap})`)
 		);
 	}
 	return callback(null, file);
@@ -127,8 +140,7 @@ function _require(moduleFunction, moduleId) {
 	 * @returns {string}			Fixed module id.
 	 */
 	function moduleIdFix(moduleId) {
-		const _moduleId = ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
-		return (((_moduleId.charAt(0) !== '/') && (_moduleId.charAt(0) !== '.')) ? './' + _moduleId : _moduleId);
+		return ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
 	}
 
 	/**
@@ -137,14 +149,19 @@ function _require(moduleFunction, moduleId) {
 	 * @returns {Function}		Scoped require.
 	 */
 	function getLocalRequire() {
-		return (localModuleId, ...params)=>_require(
+		const localRequire = (localModuleId, ...params)=>_require(
 			isString(_moduleId)?resolve(_moduleId, localModuleId):localModuleId,
 			...params
 		);
+		try {localRequire.resolve = __require.resolve;} catch(err) {}
+		return localRequire;
 	}
 
 	if (isFunction(moduleFunction)) return _commonjsBrowserWrapModules.set(_moduleId, moduleFunction);
-	if (!_commonjsBrowserWrapModules.has(_moduleId)) throw new SyntaxError(`Cannot find module with id: ${moduleId}`);
+	if (!_commonjsBrowserWrapModules.has(_moduleId)) {
+		try {return __require(_moduleId);} catch (err) {}
+		throw new SyntaxError(`Cannot find module with id: ${_moduleId}`);
+	}
 	_commonjsBrowserWrapModules.get(_moduleId)(getLocalRequire(_moduleId), module);
 	return module.exports;
 }

@@ -50,6 +50,26 @@ Browsify is awesome, this module is not meant to somehow better it.  In some cir
 
 All of the above are often useful or necessary.  However, if you need a simple gulp process that plugs into your current build. If you have have a module with both front-end and back-end components and you want to export a standalone browser module (without, much export fluff) then this module is designed to fill that gap.
 
+## Using a global loader
+
+If your module wants to load some modules from a global commonjs loader then you can use the *includeGlobal* option.  If this is set then the global loader is used as a fallback when a locally wrapped version is not found.
+
+```javascript
+
+const gulp = require('gulp');
+const concat = require('gulp-concat');
+
+gulp.task('build', ()=>gulp.src(['.lib/*.js'])
+    .pipe(concat('browser.js'))
+    .pipe(commonjsBrowserWrap({
+    	type:'moduleWrap',
+    	main:['./lib/index.js'],
+    	includeGlobal: true
+    }))
+    .pipe(gulp.dest('./build'))
+);
+```
+
 ## Automatically including requires
 
 We've written a companion vinyl-adaptor, [Vinyl CommonJs Dependencies](https://github.com/Whitebolt/vinyl-commonjs-dependencies) that is compatible with gulp. It can pull all the dependencies of a main module into the gulp stream for processing.
