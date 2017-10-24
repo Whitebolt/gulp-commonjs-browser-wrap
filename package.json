@@ -8,7 +8,7 @@
       "email": "stephen@whitebolt.net"
     }
   ],
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": false,
   "keywords": [
     "gulpfriendly",
@@ -21,6 +21,7 @@
   "dependencies": {
     "lodash-provider": "^1.0.1",
     "lodash.castarray": "^4.4.0",
+    "lodash.flattendeep": "^4.4.0",
     "lodash.isfunction": "^3.0.8",
     "lodash.isobject": "^3.0.2",
     "lodash.isstring": "^4.0.1",
@@ -36,6 +37,34 @@
   "homepage": "https://github.com/Whitebolt/gulp-commonjs-browser-wrap#readme",
   "license": "MIT",
   "devDependencies": {
-
+    "babel-core": "^6.26.0",
+    "babel-plugin-syntax-async-functions": "^6.13.0",
+    "babel-plugin-syntax-async-generators": "^6.13.0",
+    "babel-plugin-transform-async-generator-functions": "^6.24.1",
+    "babel-plugin-transform-es2015-spread": "^6.22.0",
+    "babel-plugin-transform-regenerator": "^6.26.0",
+    "babel-preset-env": "^1.6.0",
+    "gulp-babel": "^7.0.0"
+  },
+  "babel": {
+    "presets": [
+      [
+        "env",
+        {
+          "targets": {
+            "node": "4.0.0"
+          },
+          "include": [
+            "babel-plugin-transform-es2015-spread"
+          ]
+        }
+      ]
+    ],
+    "plugins": [
+      "syntax-async-functions",
+      "syntax-async-generators",
+      "transform-async-generator-functions",
+      "transform-regenerator"
+    ]
   }
 }
