@@ -8,7 +8,7 @@
       "email": "stephen@whitebolt.net"
     }
   ],
-  "version": "0.6.1",
+  "version": "0.6.2",
   "private": false,
   "keywords": [
     "gulpfriendly",
@@ -17,6 +17,11 @@
     "browsify",
     "require",
     "build"
+  ],
+  "files": [
+    "build/",
+    "yarn.lock",
+    "index.js"
   ],
   "dependencies": {
     "lodash-provider": "^1.4.0",
