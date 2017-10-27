@@ -94,7 +94,7 @@ function pluginRequires(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
 		const moduleId = './' + path.relative(file.cwd, file.path);
 		let pre = 'require(function(require, module){';
-		let post = `}, '${moduleId}');`;
+		let post = `}, '${moduleId}', ${options.debug});`;
 		if (xIsJson.test(file.path)) pre += 'module.exports=';
 		wrapVinyl(file, prePost(pre), prePost(post));
 	}
@@ -136,7 +136,7 @@ function pluginModule(options, file, encoding, callback) {
 	return callback(null, file);
 }
 
-function _require(moduleFunction, moduleId) {
+function _require(moduleFunction, moduleId, debug) {
 	const _moduleId = moduleIdFix(moduleId);
 	const module = {};
 
@@ -152,6 +152,10 @@ function _require(moduleFunction, moduleId) {
 		return ((!isFunction(moduleFunction))?moduleFunction:moduleId).replace(/\.js$/, '');
 	}
 
+	function debugMessage(message) {
+		console.log(`CommonJs Wrap [DEBUG]: ${message}`);
+	}
+
 	/**
 	 * Get a require function scoped to module.
 	 *
@@ -162,13 +166,19 @@ function _require(moduleFunction, moduleId) {
 			isString(_moduleId)?resolve(_moduleId, localModuleId):localModuleId,
 			...params
 		);
-		try {localRequire.resolve = __require.resolve;} catch(err) {}
+		try {
+			localRequire.resolve = __require.resolve;
+		} catch(err) {
+			if (debug) console.error(err);
+		}
 		return localRequire;
 	}
 
 	if (isFunction(moduleFunction)) return _commonjsBrowserWrapModules.set(_moduleId, moduleFunction);
 	if (!_commonjsBrowserWrapModules.has(_moduleId)) {
-		try {return __require(_moduleId);} catch (err) {}
+		try {return __require(_moduleId);} catch (err) {
+			if (debug) console.error(err);
+		}
 		throw new SyntaxError(`Cannot find module with id: ${_moduleId}`);
 	}
 	_commonjsBrowserWrapModules.get(_moduleId)(getLocalRequire(_moduleId), module);
@@ -182,12 +192,13 @@ function _require(moduleFunction, moduleId) {
  * @returns {Object}				Mutated options (defaults added).
  */
 function parseOptions(options={}) {
-	options.type = options.type || 'requireWrap';
-	options.includeGlobal = options.includeGlobal || false;
-	options.insertAtTop = options.insertAtTop || '';
-	options.insertAtBottom = options.insertAtBottom || '';
-
-	return options;
+	return Object.assign({
+		type: 'requireWrap',
+		includeGlobal: false,
+		insertAtTop: '',
+		insertAtBottom: '',
+		debug: false
+	}, options);
 }
 
 module.exports = options=>{
