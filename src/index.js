@@ -3,6 +3,7 @@
 const through = require('through2');
 const path = require('path');
 const {makeArray, isFunction, isString, lopped, insertFunctions} = require('./util');
+const xIsJson = /\.json$/;
 
 const exportedRequire = insertFunctions(
 	_require.toString().replace(/\b_require/g, 'require'),
@@ -92,7 +93,10 @@ function prePost(prePost) {
 function pluginRequires(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
 		const moduleId = './' + path.relative(file.cwd, file.path);
-		wrapVinyl(file, prePost('require(function(require, module){'), prePost(`}, '${moduleId}');`));
+		let pre = 'require(function(require, module){';
+		let post = `}, '${moduleId}');`;
+		if (xIsJson.test(file.path)) pre += 'module.exports=';
+		wrapVinyl(file, prePost(pre), prePost(post));
 	}
 	return callback(null, file);
 }
@@ -117,12 +121,17 @@ function pluginModule(options, file, encoding, callback) {
 			(function(){try {return require;} catch(err) {}})(),
 			(function(){try {return module;} catch(err) {}})()`
 			: '';
+		const pre = `(function(${topWrap}){
+			const _commonjsBrowserWrapModules = new Map();
+			${options.insertAtTop}
+			${exportedRequire}
+		`;
+		const post = `
+			${requires}
+			${options.insertAtBottom}
+		})(${bottomWrap})`;
 
-		wrapVinyl(
-			file,
-			prePost(`(function(${topWrap}){const _commonjsBrowserWrapModules = new Map();${options.insertAtTop}${exportedRequire}`),
-			prePost(`${requires}${options.insertAtBottom}})(${bottomWrap})`)
-		);
+		wrapVinyl(file, prePost(pre), prePost(post));
 	}
 	return callback(null, file);
 }
