@@ -22,7 +22,7 @@ util.makeArray = function makeArray(value) {
  * Take a path and lop one level off it
  *
  * @param {string} path		Path to lop.
- * @returns {string}		new path.
+ * @returns {Array}			new path.
  */
 util.lopped = function lopped(path) {
 	const parts = path.split('/');

@@ -116,18 +116,27 @@ function pluginModule(options, file, encoding, callback) {
 			return `require('${moduleId}');`;
 		}).join('');
 
-		const topWrap = options.includeGlobal ? '__require, __module' : '';
+		const topWrap = options.includeGlobal ?
+			'__require, __module' :
+			'';
 		const bottomWrap = options.includeGlobal ? `
 			(function(){try {return require;} catch(err) {}})(),
 			(function(){try {return module;} catch(err) {}})()`
 			: '';
+		const bottomExtra = options.includeGlobal ?
+			'require.cache = __require.cache;require.resolve = __require.resolve' :
+			'';
 		const pre = `(function(${topWrap}){
-			const _commonjsBrowserWrapModules = new Map();
-			const _commonjsBrowserWrapModulesCache = new Map();
-			const _commonjsBrowserWrapModulesDebug = ${!!options.debug};
+			const __commonjsBrowserWrap = {
+				cache: Object.create(null),
+				modules: Object.create(null),
+				debug: ${!!options.debug}
+			};
 			${options.insertAtTop}
 			${exportedRequire}
+			${bottomExtra}
 		`;
+
 		const post = `
 			${requires}
 			${options.insertAtBottom}
@@ -141,6 +150,14 @@ function pluginModule(options, file, encoding, callback) {
 function _require(moduleFunction, moduleId) {
 	const _moduleId = moduleIdFix(moduleId);
 	const module = {};
+	const _globalCache = {};
+	const globalCache = (()=>{
+		try {
+			return __require.cache;
+		} catch(err) {
+			return globalCache;
+		}
+	})();
 
 	if (__module && __module.parent) module.parent = __module.parent;
 
@@ -160,6 +177,40 @@ function _require(moduleFunction, moduleId) {
 		console.log(`CommonJs Wrap [DEBUG]: ${message}`);
 	}
 
+	function getAnchorRef(moduleId) {
+		try {
+			if (__filename) return __filename + '#' + moduleId;
+		} catch (err) {}
+	}
+
+	const cache = {
+		get: function(property, secondPass, originalProperty) {
+			if (globalCache !== _globalCache) {
+				if (globalCache.has && globalCache.has(property) && globalCache.get) return globalCache.get(property);
+				if (property in globalCache) return globalCache[property];
+				if (!secondPass) return cache.get(getAnchorRef(property), true, property);
+			}
+			return __commonjsBrowserWrap.cache[originalProperty || property];
+		},
+		set: function(property, value) {
+			if (globalCache !== _globalCache) {
+				var globalProperty = getAnchorRef(property);
+				if (globalCache.set) return globalCache.set(globalProperty, value);
+				globalCache[globalProperty] = value;
+				return true;
+			}
+			return __commonjsBrowserWrap.cache[property] = value;
+		},
+		has: function(property, secondPass, originalProperty){
+			if (globalCache !== _globalCache) {
+				if (globalCache.has && globalCache.has(property)) return true;
+				if (property in globalCache) return true;
+				if (!secondPass) return cache.get(getAnchorRef(property), true, property);
+			}
+			return ((originalProperty || property) in __commonjsBrowserWrap.cache);
+		}
+	};
+
 	/**
 	 * Get a require function scoped to module.
 	 *
@@ -173,22 +224,26 @@ function _require(moduleFunction, moduleId) {
 		try {
 			localRequire.resolve = __require.resolve;
 		} catch(err) {
-			if (_commonjsBrowserWrapModulesDebug) console.error(err);
+			if (__commonjsBrowserWrap.debug) console.error(err);
+			console.error(err);
 		}
 		return localRequire;
 	}
 
-	if (isFunction(moduleFunction)) return _commonjsBrowserWrapModules.set(_moduleId, moduleFunction);
-	if (!_commonjsBrowserWrapModules.has(_moduleId)) {
-		try {return __require(_moduleId);} catch (err) {
-			if (_commonjsBrowserWrapModulesDebug) console.error(err);
+	if (isFunction(moduleFunction)) return __commonjsBrowserWrap.modules[_moduleId] = moduleFunction;
+	if (!(_moduleId in __commonjsBrowserWrap.modules)) {
+		try {
+			return __require(_moduleId);
+		} catch (err) {
+			if (__commonjsBrowserWrap.debug) console.error(err);
+			console.error(err);
 		}
 		throw new SyntaxError(`Cannot find module with id: ${_moduleId}`);
 	}
 
-	if (_commonjsBrowserWrapModulesCache.has(_moduleId)) return _commonjsBrowserWrapModulesCache.get(_moduleId);
-	_commonjsBrowserWrapModules.get(_moduleId)(getLocalRequire(_moduleId), module);
-	_commonjsBrowserWrapModulesCache.set(_moduleId, module.exports);
+	if (cache.has(_moduleId)) return cache.get(_moduleId);
+	__commonjsBrowserWrap.modules[_moduleId](getLocalRequire(_moduleId), module);
+	cache.set(_moduleId, module.exports);
 
 	return module.exports;
 }
