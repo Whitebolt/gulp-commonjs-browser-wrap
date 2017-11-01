@@ -6,7 +6,7 @@ const {makeArray, isFunction, isString, lopped, insertFunctions} = require('./ut
 const xIsJson = /\.json$/;
 
 const exportedRequire = insertFunctions(
-	_require.toString().replace(/\b_require/g, 'require'),
+	_require.toString().replace(/\b_require\b/g, 'require'),
 	'// insert-functions',
 	isFunction, isString, lopped, resolve
 );
@@ -94,7 +94,7 @@ function pluginRequires(options, file, encoding, callback) {
 	if (file.isStream() || file.isBuffer()) {
 		const moduleId = './' + path.relative(file.cwd, file.path);
 		let pre = 'require(function(require, module){';
-		let post = `}, '${moduleId}', ${options.debug});`;
+		let post = `}, '${moduleId}');`;
 		if (xIsJson.test(file.path)) pre += 'module.exports=';
 		wrapVinyl(file, prePost(pre), prePost(post));
 	}
@@ -124,6 +124,7 @@ function pluginModule(options, file, encoding, callback) {
 		const pre = `(function(${topWrap}){
 			const _commonjsBrowserWrapModules = new Map();
 			const _commonjsBrowserWrapModulesCache = new Map();
+			const _commonjsBrowserWrapModulesDebug = ${!!options.debug};
 			${options.insertAtTop}
 			${exportedRequire}
 		`;
@@ -137,7 +138,7 @@ function pluginModule(options, file, encoding, callback) {
 	return callback(null, file);
 }
 
-function _require(moduleFunction, moduleId, debug) {
+function _require(moduleFunction, moduleId) {
 	const _moduleId = moduleIdFix(moduleId);
 	const module = {};
 
@@ -172,7 +173,7 @@ function _require(moduleFunction, moduleId, debug) {
 		try {
 			localRequire.resolve = __require.resolve;
 		} catch(err) {
-			if (debug) console.error(err);
+			if (_commonjsBrowserWrapModulesDebug) console.error(err);
 		}
 		return localRequire;
 	}
@@ -180,7 +181,7 @@ function _require(moduleFunction, moduleId, debug) {
 	if (isFunction(moduleFunction)) return _commonjsBrowserWrapModules.set(_moduleId, moduleFunction);
 	if (!_commonjsBrowserWrapModules.has(_moduleId)) {
 		try {return __require(_moduleId);} catch (err) {
-			if (debug) console.error(err);
+			if (_commonjsBrowserWrapModulesDebug) console.error(err);
 		}
 		throw new SyntaxError(`Cannot find module with id: ${_moduleId}`);
 	}
