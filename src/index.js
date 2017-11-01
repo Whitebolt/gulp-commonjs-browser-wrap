@@ -123,6 +123,7 @@ function pluginModule(options, file, encoding, callback) {
 			: '';
 		const pre = `(function(${topWrap}){
 			const _commonjsBrowserWrapModules = new Map();
+			const _commonjsBrowserWrapModulesCache = new Map();
 			${options.insertAtTop}
 			${exportedRequire}
 		`;
@@ -139,6 +140,8 @@ function pluginModule(options, file, encoding, callback) {
 function _require(moduleFunction, moduleId, debug) {
 	const _moduleId = moduleIdFix(moduleId);
 	const module = {};
+
+	if (__module && __module.parent) module.parent = __module.parent;
 
 	// insert-functions
 
@@ -181,7 +184,11 @@ function _require(moduleFunction, moduleId, debug) {
 		}
 		throw new SyntaxError(`Cannot find module with id: ${_moduleId}`);
 	}
+
+	if (_commonjsBrowserWrapModulesCache.has(_moduleId)) return _commonjsBrowserWrapModulesCache.get(_moduleId);
 	_commonjsBrowserWrapModules.get(_moduleId)(getLocalRequire(_moduleId), module);
+	_commonjsBrowserWrapModulesCache.set(_moduleId, module.exports);
+
 	return module.exports;
 }
 
